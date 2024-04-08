@@ -6,19 +6,16 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -36,14 +33,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.VectorComposable
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.letterboxd.composenavigationwithfragments.ui.theme.ComposeNavigationWithFragmentsTheme
 import kotlinx.coroutines.launch
 
@@ -53,6 +52,7 @@ sealed class Screen(val route: String, val icon: ImageVector) {
     data object New : Screen("new", Icons.Filled.AddCircle)
     data object Activity : Screen("activity", Icons.Filled.FavoriteBorder)
     data object Profile : Screen("profile", Icons.Rounded.Person)
+    data object Film : Screen("film/{id}", Icons.Rounded.Person)
 }
 
 class MainActivity : ComponentActivity() {
@@ -78,121 +78,76 @@ fun Navigation() {
 
     val items = listOf(Screen.Popular, Screen.Search, Screen.New, Screen.Activity, Screen.Profile)
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
+    Scaffold(snackbarHost = { SnackbarHost(hostState = snackbarHostState) }, bottomBar = {
+        NavigationBar {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentDestination = navBackStackEntry?.destination
 
-                items.forEach { screen ->
-                    when (screen) {
-                        Screen.New -> {
-                            NavigationBarItem(
-                                icon = { Icon(screen.icon, contentDescription = null) },
-                                selected = false,
-                                onClick = {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("New message clicked")
-                                    }
+            items.forEach { screen ->
+                when (screen) {
+                    Screen.New -> {
+                        NavigationBarItem(icon = { Icon(screen.icon, contentDescription = null) },
+                            selected = false,
+                            onClick = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("New message clicked")
                                 }
-                            )
-                        }
+                            })
+                    }
 
-                        else -> {
-                            NavigationBarItem(
-                                icon = { Icon(screen.icon, contentDescription = null) },
-                                //                    label = { Text(text = screen.route) },
-                                selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                                onClick = {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-
-                                        launchSingleTop = true
-
-                                        restoreState = true
+                    else -> {
+                        NavigationBarItem(
+                            icon = { Icon(screen.icon, contentDescription = null) },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    // Pop up to the start destination of the graph to
+                                    // avoid building up a large stack of destinations
+                                    // on the back stack as users select items
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
                                     }
-                                },
-                            )
-                        }
+                                    // Avoid multiple copies of the same destination when
+                                    // re-selecting the same item
+                                    launchSingleTop = true
+                                    // Restore state when re-selecting a previously selected item
+                                    restoreState = true
+                                }
+                            },
+                        )
                     }
                 }
             }
-        }) { innerPadding ->
+        }
+    }) { innerPadding ->
         // A surface container using the 'background' color from the theme
-        NavHost(
-            navController = navController,
+        NavHost(navController = navController,
             startDestination = Screen.Popular.route,
-            modifier = Modifier.padding(innerPadding),
-            enterTransition = {
-                EnterTransition.None
-            },
-            exitTransition = {
-                ExitTransition.None
-            }
-        ) {
-            composable(Screen.Popular.route) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.Red)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = "Popular Screen")
-                }
-            }
-
-            composable(Screen.Search.route) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.Green)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = "Search Screen")
-                }
-            }
-
-//            composable(Screen.New.route) {
-//                Box(
-//                    modifier = Modifier.background(Color.Red).fillMaxSize(),
-//                    contentAlignment = Alignment.Center,
-//                ) {
-//                    Text(text = "New Screen")
-//                }
+            modifier = Modifier.padding(innerPadding).fillMaxSize().border(1.dp, Color.Red),
+//            enterTransition = {
+//                EnterTransition.None
+//            },
+//            exitTransition = {
+//                ExitTransition.None
 //            }
-
-            composable(Screen.Activity.route) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.Cyan)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = "Activity Screen")
-                }
-            }
-
-            composable(Screen.Profile.route) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.Blue)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = "Profile Screen")
-                }
+        ) {
+            composable(Screen.Popular.route) { PopularScreen(navController, snackbarHostState) }
+            composable(Screen.Search.route) { SearchScreen(navController) }
+            composable(Screen.Activity.route) { ActivityScreen() }
+            composable(Screen.Profile.route) { ProfileScreen() }
+            composable(
+                Screen.Film.route,
+                arguments = listOf(navArgument("id") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")
+                    ?: error("Film ID not passed on film screen.")
+                FilmScreen(navController, id)
             }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
-    ComposeNavigationWithFragmentsTheme {
-        Navigation()
-    }
+fun NavBar() {
+
 }
